@@ -31,6 +31,18 @@ ccflags-y += -DKSU_BRANCH=\"$(KSU_GIT_BRANCH)\"
 $(info -- KernelSU version: $(KSU_VERSION))
 $(info -- KernelSU branch: $(KSU_GIT_BRANCH))
 
+KSU_GIT_TAG := $(shell cd $(srctree) && git describe --tags --abbrev=0 2>/dev/null)
+ifdef KSU_GIT_TAG
+$(eval KSU_VERSION_TAG=$(KSU_GIT_TAG))
+$(info -- KernelSU tag: $(KSU_VERSION_TAG))
+ccflags-y += -DKSU_VERSION_TAG=\"$(KSU_VERSION_TAG)\"
+else
+$(warning "KSU_VERSION_TAG not defined! Falling back to branch name.")
+KSU_VERSION_TAG_FALLBACK := $(KSU_GIT_BRANCH)
+$(info -- KernelSU tag fallback: $(KSU_VERSION_TAG_FALLBACK))
+ccflags-y += -DKSU_VERSION_TAG=\"$(KSU_VERSION_TAG_FALLBACK)\"
+endif
+
 # SELinux drivers check
 ifeq ($(shell grep -q "current_sid(void)" $(srctree)/security/selinux/include/objsec.h; echo $$?),0)
 ccflags-y += -DKSU_COMPAT_HAS_CURRENT_SID

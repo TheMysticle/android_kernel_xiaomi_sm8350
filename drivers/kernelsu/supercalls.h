@@ -99,6 +99,14 @@ struct ksu_add_try_umount_cmd {
 	__u8 mode; // denotes what to do with it 0:wipe_list 1:add_to_list 2:delete_entry
 };
 
+struct ksu_get_hook_mode_cmd {
+	char mode[16]; // Output: hook mode string ("Kprobes" or "Manual")
+};
+
+struct ksu_get_version_tag_cmd {
+	char tag[32]; // Output: version tag string (e.g. "v1.0.0")
+};
+
 #define KSU_UMOUNT_WIPE 0 // ignore everything and wipe list
 #define KSU_UMOUNT_ADD 1 // add entry (path + flags)
 #define KSU_UMOUNT_DEL 2 // delete entry, strcmp
@@ -124,6 +132,8 @@ struct ksu_add_try_umount_cmd {
 #define KSU_IOCTL_MANAGE_MARK _IOC(_IOC_READ | _IOC_WRITE, 'K', 16, 0)
 #define KSU_IOCTL_NUKE_EXT4_SYSFS _IOC(_IOC_WRITE, 'K', 17, 0)
 #define KSU_IOCTL_ADD_TRY_UMOUNT _IOC(_IOC_WRITE, 'K', 18, 0)
+#define KSU_IOCTL_GET_HOOK_MODE  _IOC(_IOC_READ,  'K', 98, 0)
+#define KSU_IOCTL_GET_VERSION_TAG _IOC(_IOC_READ, 'K', 99, 0)
 
 // IOCTL handler types
 typedef int (*ksu_ioctl_handler_t)(void __user *arg);

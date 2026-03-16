@@ -607,6 +607,47 @@ static int do_nuke_ext4_sysfs(void __user *arg)
 	return nuke_ext4_sysfs(mnt);
 }
 
+static int do_get_hook_mode(void __user *arg)
+{
+	struct ksu_get_hook_mode_cmd cmd = {0};
+	const char *type = "Kprobes";
+
+#ifndef KSU_KPROBES_HOOK
+	type = "Manual";
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	strscpy(cmd.mode, type, sizeof(cmd.mode));
+#else
+	strlcpy(cmd.mode, type, sizeof(cmd.mode));
+#endif
+
+	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
+		pr_err("get_hook_mode: copy_to_user failed\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
+static int do_get_version_tag(void __user *arg)
+{
+	struct ksu_get_version_tag_cmd cmd = {0};
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
+	strscpy(cmd.tag, KERNEL_SU_VERSION_TAG, sizeof(cmd.tag));
+#else
+	strlcpy(cmd.tag, KERNEL_SU_VERSION_TAG, sizeof(cmd.tag));
+#endif
+
+	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
+		pr_err("get_version_tag: copy_to_user failed\n");
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 // IOCTL handlers mapping table
 static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
 	KSU_IOCTL(GRANT_ROOT, "GRANT_ROOT", do_grant_root, allowed_for_su),
@@ -637,6 +678,10 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
 	KSU_IOCTL(NUKE_EXT4_SYSFS, "NUKE_EXT4_SYSFS", do_nuke_ext4_sysfs,
 		  manager_or_root),
 	KSU_IOCTL(ADD_TRY_UMOUNT, "ADD_TRY_UMOUNT", add_try_umount,
+		  manager_or_root),
+	KSU_IOCTL(GET_HOOK_MODE, "GET_HOOK_MODE", do_get_hook_mode,
+		  manager_or_root),
+	KSU_IOCTL(GET_VERSION_TAG, "GET_VERSION_TAG", do_get_version_tag,
 		  manager_or_root),
 
 	// Sentinel
