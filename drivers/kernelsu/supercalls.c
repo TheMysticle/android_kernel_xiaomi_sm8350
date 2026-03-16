@@ -17,6 +17,7 @@
 #endif
 #include <linux/namei.h>
 #include <linux/susfs.h>
+#include <linux/stddef.h>
 
 #include "supercalls.h"
 #include "arch.h"
@@ -164,50 +165,116 @@ static int do_check_safemode(void __user *arg)
 	return 0;
 }
 
-static int do_get_allow_list(void __user *arg)
+#define MAX_ALLOW_LIST_ENTRIES 2048
+
+static int do_get_allow_list_common(void __user *arg, bool allow)
 {
-	struct ksu_get_allow_list_cmd cmd;
+	int *arr = NULL;
+	int err = 0;
+	int count = 0;
+	u32 out_count;
+	char __user *user_arg = (char __user *)arg;
+
+	// Use kmalloc instead of the stack to prevent kernel panic / stack overflow if you have > 128 superusers
+	arr = kmalloc(sizeof(int) * MAX_ALLOW_LIST_ENTRIES, GFP_KERNEL);
+	if (!arr) {
+		return -ENOMEM;
+	}
+
+	bool success = ksu_get_allow_list(arr, &count, allow);
+
+	if (!success) {
+		err = -EFAULT;
+		goto out;
+	}
+
+	out_count = (u32)count;
+
+	// Update just the count parameter using offsetof, exactly as the app expects
+	if (copy_to_user(user_arg + offsetof(struct ksu_get_allow_list_cmd, count),
+			 &out_count, sizeof(u32))) {
+		pr_err("get_allow_list: copy_to_user count failed\n");
+		err = -EFAULT;
+		goto out;
+	}
+
+	// For legacy ioctls, max cap the returned UIDs array to 128 to protect userspace bounds
+	int copy_count = count > 128 ? 128 : count;
+
+	if (copy_count > 0 && copy_to_user(arg, arr, sizeof(u32) * copy_count)) {
+		pr_err("get_allow_list: copy_to_user uids failed\n");
+		err = -EFAULT;
+	}
+
+out:
+	kfree(arr);
+	return err;
+}
+
+static int do_new_get_allow_list_common(void __user *arg, bool allow)
+{
+	struct ksu_new_get_allow_list_cmd cmd;
+	struct ksu_new_get_allow_list_cmd __user *user_cmd = arg;
+	int *arr = NULL;
+	int err = 0;
+	int count = 0;
 
 	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
 		return -EFAULT;
 	}
 
-	bool success =
-		ksu_get_allow_list((int *)cmd.uids, (int *)&cmd.count, true);
+	arr = kmalloc(sizeof(int) * MAX_ALLOW_LIST_ENTRIES, GFP_KERNEL);
+	if (!arr) {
+		return -ENOMEM;
+	}
+
+	bool success = ksu_get_allow_list(arr, &count, allow);
 
 	if (!success) {
-		return -EFAULT;
+		err = -EFAULT;
+		goto out;
+	}
+
+	cmd.total_count = (u16)count;
+	
+	if (cmd.count > count) {
+		cmd.count = count;
 	}
 
 	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-		pr_err("get_allow_list: copy_to_user failed\n");
-		return -EFAULT;
+		pr_err("new_get_allow_list: copy_to_user header failed\n");
+		err = -EFAULT;
+		goto out;
 	}
 
-	return 0;
+	if (cmd.count > 0 && copy_to_user(user_cmd->uids, arr, sizeof(u32) * cmd.count)) {
+		pr_err("new_get_allow_list: copy_to_user uids failed\n");
+		err = -EFAULT;
+	}
+
+out:
+	kfree(arr);
+	return err;
 }
 
 static int do_get_deny_list(void __user *arg)
 {
-	struct ksu_get_allow_list_cmd cmd;
+	return do_get_allow_list_common(arg, false);
+}
 
-	if (copy_from_user(&cmd, arg, sizeof(cmd))) {
-		return -EFAULT;
-	}
+static int do_get_allow_list(void __user *arg)
+{
+	return do_get_allow_list_common(arg, true);
+}
 
-	bool success =
-		ksu_get_allow_list((int *)cmd.uids, (int *)&cmd.count, false);
+static int do_new_get_deny_list(void __user *arg)
+{
+	return do_new_get_allow_list_common(arg, false);
+}
 
-	if (!success) {
-		return -EFAULT;
-	}
-
-	if (copy_to_user(arg, &cmd, sizeof(cmd))) {
-		pr_err("get_deny_list: copy_to_user failed\n");
-		return -EFAULT;
-	}
-
-	return 0;
+static int do_new_get_allow_list(void __user *arg)
+{
+	return do_new_get_allow_list_common(arg, true);
 }
 
 static int do_uid_granted_root(void __user *arg)
@@ -659,6 +726,10 @@ static const struct ksu_ioctl_cmd_map ksu_ioctl_handlers[] = {
 	KSU_IOCTL(GET_ALLOW_LIST, "GET_ALLOW_LIST", do_get_allow_list,
 		  manager_or_root),
 	KSU_IOCTL(GET_DENY_LIST, "GET_DENY_LIST", do_get_deny_list,
+		  manager_or_root),
+	KSU_IOCTL(NEW_GET_ALLOW_LIST, "NEW_GET_ALLOW_LIST", do_new_get_allow_list,
+		  manager_or_root),
+	KSU_IOCTL(NEW_GET_DENY_LIST, "NEW_GET_DENY_LIST", do_new_get_deny_list,
 		  manager_or_root),
 	KSU_IOCTL(UID_GRANTED_ROOT, "UID_GRANTED_ROOT", do_uid_granted_root,
 		  manager_or_root),
