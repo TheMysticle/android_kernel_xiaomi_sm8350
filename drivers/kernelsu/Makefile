@@ -23,22 +23,32 @@ ccflags-y += -I$(objtree)/security/selinux -include $(srctree)/include/uapi/asm-
 
 obj-$(CONFIG_KSU) += kernelsu.o
 
-KSU_VERSION=32359
-KSU_GIT_BRANCH="susfs-rksu-master"
+KSU_GIT_VERSION := 2967
+KSU_GIT_TAG := v3.0.1
+KSU_GIT_BRANCH := "susfs-rksu-master"
+KSU_GIT_VERSION_VALID := 1
 
-ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
-ccflags-y += -DKSU_BRANCH=\"$(KSU_GIT_BRANCH)\"
+# ksu_version: major * 30000 + git version for historical reasons
+ifdef KSU_GIT_VERSION_VALID
+$(eval KSU_VERSION=$(shell expr 30000 + $(KSU_GIT_VERSION)))
 $(info -- KernelSU version: $(KSU_VERSION))
-$(info -- KernelSU branch: $(KSU_GIT_BRANCH))
+ccflags-y += -DKSU_VERSION=$(KSU_VERSION)
+else
+$(warning "KSU_GIT_VERSION not defined! It is better to make KernelSU-Next a git repository!")
+KSU_VERSION_FALLBACK := 1
+$(info -- KernelSU version fallback: $(KSU_VERSION_FALLBACK))
+ccflags-y += -DKSU_VERSION=$(KSU_VERSION_FALLBACK)
+endif
 
-KSU_GIT_TAG := $(shell cd $(srctree) && git describe --tags --abbrev=0 2>/dev/null)
-ifdef KSU_GIT_TAG
+ccflags-y += -DKSU_BRANCH=\"$(KSU_GIT_BRANCH)\"
+
+ifdef KSU_GIT_VERSION_VALID
 $(eval KSU_VERSION_TAG=$(KSU_GIT_TAG))
 $(info -- KernelSU tag: $(KSU_VERSION_TAG))
 ccflags-y += -DKSU_VERSION_TAG=\"$(KSU_VERSION_TAG)\"
 else
-$(warning "KSU_VERSION_TAG not defined! Falling back to branch name.")
-KSU_VERSION_TAG_FALLBACK := $(KSU_GIT_BRANCH)
+$(warning "KSU_VERSION_TAG not defined! It is better to make KernelSU-Next a git submodule!")
+KSU_VERSION_TAG_FALLBACK := v0.0.1
 $(info -- KernelSU tag fallback: $(KSU_VERSION_TAG_FALLBACK))
 ccflags-y += -DKSU_VERSION_TAG=\"$(KSU_VERSION_TAG_FALLBACK)\"
 endif
