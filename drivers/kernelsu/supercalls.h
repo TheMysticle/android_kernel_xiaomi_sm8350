@@ -40,12 +40,6 @@ struct ksu_get_allow_list_cmd {
 	__u8 allow; // Input: true for allow list, false for deny list
 };
 
-struct ksu_new_get_allow_list_cmd {
-	__u16 count; // Input / Output: number of UIDs in array
-	__u16 total_count; // Output: total number of UIDs in requested list
-	__u32 uids[0]; // Output: array of allowed/denied UIDs
-};
-
 struct ksu_uid_granted_root_cmd {
 	__u32 uid; // Input: target UID to check
 	__u8 granted; // Output: true if granted, false otherwise
@@ -105,14 +99,6 @@ struct ksu_add_try_umount_cmd {
 	__u8 mode; // denotes what to do with it 0:wipe_list 1:add_to_list 2:delete_entry
 };
 
-struct ksu_get_hook_mode_cmd {
-	char mode[16]; // Output: hook mode string ("Kprobes" or "Manual")
-};
-
-struct ksu_get_version_tag_cmd {
-	char tag[32]; // Output: version tag string (e.g. "v1.0.0")
-};
-
 #define KSU_UMOUNT_WIPE 0 // ignore everything and wipe list
 #define KSU_UMOUNT_ADD 1 // add entry (path + flags)
 #define KSU_UMOUNT_DEL 2 // delete entry, strcmp
@@ -127,8 +113,6 @@ struct ksu_get_version_tag_cmd {
 #define KSU_IOCTL_CHECK_SAFEMODE _IOC(_IOC_READ, 'K', 5, 0)
 #define KSU_IOCTL_GET_ALLOW_LIST _IOC(_IOC_READ | _IOC_WRITE, 'K', 6, 0)
 #define KSU_IOCTL_GET_DENY_LIST _IOC(_IOC_READ | _IOC_WRITE, 'K', 7, 0)
-#define KSU_IOCTL_NEW_GET_ALLOW_LIST _IOWR('K', 6, struct ksu_new_get_allow_list_cmd)
-#define KSU_IOCTL_NEW_GET_DENY_LIST _IOWR('K', 7, struct ksu_new_get_allow_list_cmd)
 #define KSU_IOCTL_UID_GRANTED_ROOT _IOC(_IOC_READ | _IOC_WRITE, 'K', 8, 0)
 #define KSU_IOCTL_UID_SHOULD_UMOUNT _IOC(_IOC_READ | _IOC_WRITE, 'K', 9, 0)
 #define KSU_IOCTL_GET_MANAGER_APPID _IOC(_IOC_READ, 'K', 10, 0)
@@ -140,8 +124,6 @@ struct ksu_get_version_tag_cmd {
 #define KSU_IOCTL_MANAGE_MARK _IOC(_IOC_READ | _IOC_WRITE, 'K', 16, 0)
 #define KSU_IOCTL_NUKE_EXT4_SYSFS _IOC(_IOC_WRITE, 'K', 17, 0)
 #define KSU_IOCTL_ADD_TRY_UMOUNT _IOC(_IOC_WRITE, 'K', 18, 0)
-#define KSU_IOCTL_GET_HOOK_MODE  _IOC(_IOC_READ,  'K', 98, 0)
-#define KSU_IOCTL_GET_VERSION_TAG _IOC(_IOC_READ, 'K', 99, 0)
 
 // IOCTL handler types
 typedef int (*ksu_ioctl_handler_t)(void __user *arg);

@@ -1,16 +1,12 @@
 #include <linux/version.h>
 #include <linux/fs.h>
-#include <linux/dcache.h>
-#include <linux/uaccess.h>
-#include <linux/fdtable.h>
-#include <linux/string.h>
-#include <linux/security.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 #include <linux/sched/task.h>
 #else
 #include <linux/sched.h>
 #endif
-
+#include <linux/uaccess.h>
+#include <linux/fdtable.h>
 #include "klog.h" // IWYU pragma: keep
 #include "kernel_compat.h"
 
@@ -19,6 +15,7 @@
 #include <linux/key.h>
 #include <linux/errno.h>
 #include <linux/cred.h>
+#include <linux/lsm_hooks.h>
 
 extern int install_session_keyring_to_cred(struct cred *, struct key *);
 struct key *init_session_keyring = NULL;
@@ -122,6 +119,7 @@ do_strncpy_user_nofault(char *dst, const void __user *unsafe_addr, long count)
 long ksu_strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 				   long count)
 {
+#ifdef CONFIG_KSU_MANUAL_HOOK
 	long ret;
 
 	ret = do_strncpy_user_nofault(dst, unsafe_addr, count);
@@ -141,6 +139,9 @@ long ksu_strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 	}
 
 	return ret;
+#else
+	return do_strncpy_user_nofault(dst, unsafe_addr, count);
+#endif
 }
 
 int do_close_fd(unsigned int fd)
